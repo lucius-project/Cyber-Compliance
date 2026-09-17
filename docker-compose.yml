@@ -1,0 +1,53 @@
+name: cyber-compliance
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cyber-compliance-app
+    restart: unless-stopped
+    ports:
+      - "3200:3000"
+    environment:
+      # Always resolves the "db" service on the private network below -
+      # intentionally independent of any host-side DATABASE_URL in .env.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      NODE_ENV: production
+      SEED_SYSTEM_USER_EMAIL: ${SEED_SYSTEM_USER_EMAIL}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cyber-compliance-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: cyber-compliance-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - cyber-compliance-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cyber-compliance-net
+    # Not published to the host on purpose: the app reaches Postgres only
+    # over the private cyber-compliance-net network. Uncomment only if you
+    # need a local DB client on the Windows host:
+    # ports:
+    #   - "3211:5432"
+
+networks:
+  cyber-compliance-net:
+    name: cyber-compliance-net
+
+volumes:
+  cyber-compliance-pgdata:
+    name: cyber-compliance-pgdata
