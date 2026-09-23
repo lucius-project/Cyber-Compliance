@@ -68,13 +68,18 @@ export default async function AssessmentDetailPage({
             ))}
           </div>
         </div>
-        {nextStatus && (
-          <form action={updateAssessmentStatus.bind(null, assessment.id, nextStatus)}>
-            <Button type="submit" variant="outline" size="sm">
-              Move to {nextStatus.replace("_", " ")}
-            </Button>
-          </form>
-        )}
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/assessments/${assessment.id}/meetings`}>Meeting Schedule</Link>
+          </Button>
+          {nextStatus && (
+            <form action={updateAssessmentStatus.bind(null, assessment.id, nextStatus)}>
+              <Button type="submit" variant="outline" size="sm">
+                Move to {nextStatus.replace("_", " ")}
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">

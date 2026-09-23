@@ -4,6 +4,7 @@ import type {
   RemediationStatus,
   RemediationPriority,
   AssessmentStatus,
+  MeetingStatus,
 } from "@prisma/client";
 
 const CONTROL_STATUS_LABEL: Record<ControlAssessmentStatus, string> = {
@@ -88,4 +89,20 @@ const ASSESSMENT_STATUS_VARIANT: Record<AssessmentStatus, "secondary" | "info" |
 
 export function AssessmentStatusBadge({ status }: { status: AssessmentStatus }) {
   return <Badge variant={ASSESSMENT_STATUS_VARIANT[status]}>{ASSESSMENT_STATUS_LABEL[status]}</Badge>;
+}
+
+const MEETING_STATUS_LABEL: Record<MeetingStatus, string> = {
+  SCHEDULED: "Scheduled",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const MEETING_STATUS_VARIANT: Record<MeetingStatus, "secondary" | "info" | "success" | "outline"> = {
+  SCHEDULED: "info",
+  COMPLETED: "success",
+  CANCELLED: "outline",
+};
+
+export function MeetingStatusBadge({ status }: { status: MeetingStatus }) {
+  return <Badge variant={MEETING_STATUS_VARIANT[status]}>{MEETING_STATUS_LABEL[status]}</Badge>;
 }

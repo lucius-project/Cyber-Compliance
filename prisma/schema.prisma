@@ -177,9 +177,40 @@ model Assessment {
   assessor     User?                 @relation("AssessmentAssessor", fields: [assessorId], references: [id])
   frameworks   AssessmentFramework[]
   controlAssessments ControlAssessment[]
+  meetings     Meeting[]
 
   @@index([organizationId])
   @@map("assessments")
+}
+
+// ---------------------------------------------------------------------------
+// Meetings: a recurring working session that walks through a batch of an
+// assessment's controls (agenda + generated action items are derived at
+// render time from the controls attached below, never stored).
+// ---------------------------------------------------------------------------
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model Meeting {
+  id             String        @id @default(cuid())
+  assessmentId   String
+  sequenceNumber Int
+  scheduledAt    DateTime
+  status         MeetingStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  assessment         Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  controlAssessments ControlAssessment[]
+
+  @@unique([assessmentId, sequenceNumber])
+  @@index([assessmentId])
+  @@map("meetings")
 }
 
 // Join so one assessment can cover multiple frameworks
@@ -218,6 +249,7 @@ model ControlAssessment {
   isApplicable   Boolean                  @default(true)
   ownerId        String?
   assessorId     String?
+  meetingId      String?
   notes          String?
   lastReviewedAt DateTime?
   nextReviewAt   DateTime?
@@ -228,6 +260,7 @@ model ControlAssessment {
   control    Control    @relation(fields: [controlId], references: [id], onDelete: Restrict)
   owner      User?      @relation("ControlAssessmentOwner", fields: [ownerId], references: [id])
   assessor   User?      @relation("ControlAssessmentAssessor", fields: [assessorId], references: [id])
+  meeting    Meeting?   @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
   evidence          Evidence[]
   remediationItems  RemediationItem[]
@@ -235,6 +268,7 @@ model ControlAssessment {
   @@unique([assessmentId, controlId])
   @@index([controlId])
   @@index([status])
+  @@index([meetingId])
   @@map("control_assessments")
 }
 

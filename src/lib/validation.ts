@@ -107,6 +107,21 @@ export const evidenceSchema = z.object({
 
 // Remediation ---------------------------------------------------------------
 
+// Meetings ------------------------------------------------------------------
+
+export const meetingScheduleSchema = z.object({
+  assessmentId: z.string().trim().min(1),
+  startDate: z.string().trim().min(1, "Start date is required"),
+  startTime: z.string().trim().min(1, "Start time is required"),
+  intervalDays: z.coerce.number().int().positive().default(14),
+  controlsPerMeeting: z.coerce.number().int().positive().max(20).default(3),
+});
+
+export const meetingNotesSchema = z.object({
+  meetingId: z.string().trim().min(1),
+  notes: optionalTrimmed,
+});
+
 export const remediationSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   description: optionalTrimmed,
