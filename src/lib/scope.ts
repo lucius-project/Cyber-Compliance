@@ -15,6 +15,9 @@ export const VISIBLE_MEETING = {
   OR: [{ controlAssessments: { some: IN_SCOPE } }, { status: { not: "SCHEDULED" } }, { notes: { not: null } }],
 } satisfies Prisma.MeetingWhereInput;
 
+/** Meetings that can be deleted without losing anything: not yet held and no notes taken. */
+export const CLEARABLE_MEETING = { status: "SCHEDULED", notes: null } satisfies Prisma.MeetingWhereInput;
+
 /**
  * Brings an assessment's ControlAssessment rows in line with its current
  * AssessmentFramework rows: creates a row for every newly in-scope control,

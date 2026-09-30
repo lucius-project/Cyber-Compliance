@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { IN_SCOPE } from "@/lib/scope";
+import { CLEARABLE_MEETING, IN_SCOPE } from "@/lib/scope";
 import { recordAuditLog } from "@/lib/audit";
 import { meetingScheduleSchema, meetingNotesSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/organizations";
@@ -28,10 +28,14 @@ export async function generateMeetingSchedule(
   const assessment = await prisma.assessment.findUnique({ where: { id: assessmentId } });
   if (!assessment) return { error: "Assessment not found" };
 
-  const existingMeetingCount = await prisma.meeting.count({ where: { assessmentId } });
-  if (existingMeetingCount > 0) {
-    return { error: "A meeting schedule already exists for this assessment. Delete it first to regenerate." };
-  }
+  // Meetings kept by clearMeetingSchedule (held, cancelled, or with notes)
+  // keep their numbers; new ones continue after them.
+  const lastMeeting = await prisma.meeting.findFirst({
+    where: { assessmentId },
+    orderBy: { sequenceNumber: "desc" },
+    select: { sequenceNumber: true },
+  });
+  const firstSequenceNumber = (lastMeeting?.sequenceNumber ?? 0) + 1;
 
   const unscheduled = await prisma.controlAssessment.findMany({
     where: { assessmentId, meetingId: null, ...IN_SCOPE },
@@ -39,7 +43,7 @@ export async function generateMeetingSchedule(
     orderBy: { control: { controlNumber: "asc" } },
   });
   if (unscheduled.length === 0) {
-    return { error: "No controls on this assessment to build a meeting schedule from." };
+    return { error: "Every applicable control on this assessment is already in a meeting." };
   }
 
   const startAt = new Date(`${startDate}T${startTime}:00`);
@@ -53,7 +57,7 @@ export async function generateMeetingSchedule(
     for (let i = 0; i < groups.length; i++) {
       const scheduledAt = new Date(startAt.getTime() + i * intervalDays * 24 * 60 * 60 * 1000);
       const meeting = await tx.meeting.create({
-        data: { assessmentId, sequenceNumber: i + 1, scheduledAt },
+        data: { assessmentId, sequenceNumber: firstSequenceNumber + i, scheduledAt },
       });
       await tx.controlAssessment.updateMany({
         where: { id: { in: groups[i].map((c) => c.id) } },
@@ -66,10 +70,37 @@ export async function generateMeetingSchedule(
     entityType: "Assessment",
     entityId: assessmentId,
     action: "meeting_schedule_generated",
-    newValue: { meetingCount: groups.length, controlsPerMeeting, intervalDays, startAt },
+    newValue: { meetingCount: groups.length, firstSequenceNumber, controlsPerMeeting, intervalDays, startAt },
   });
 
   revalidatePath(`/assessments/${assessmentId}/meetings`);
+  redirect(`/assessments/${assessmentId}/meetings`);
+}
+
+/**
+ * Deletes an assessment's clearable meetings so the schedule can be
+ * regenerated. Their controls become unscheduled (Meeting -> ControlAssessment
+ * is onDelete: SetNull); completed/cancelled meetings and any with notes are
+ * kept as history.
+ */
+export async function clearMeetingSchedule(assessmentId: string) {
+  const meetings = await prisma.meeting.findMany({
+    where: { assessmentId, ...CLEARABLE_MEETING },
+    select: { id: true, sequenceNumber: true, scheduledAt: true },
+  });
+  if (meetings.length === 0) return;
+
+  await prisma.meeting.deleteMany({ where: { id: { in: meetings.map((m) => m.id) } } });
+
+  await recordAuditLog({
+    entityType: "Assessment",
+    entityId: assessmentId,
+    action: "meeting_schedule_cleared",
+    previousValue: { meetings },
+    newValue: { deletedCount: meetings.length },
+  });
+
+  revalidatePath(`/assessments/${assessmentId}/meetings`, "layout");
   redirect(`/assessments/${assessmentId}/meetings`);
 }
 

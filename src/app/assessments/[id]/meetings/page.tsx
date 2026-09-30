@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { IN_SCOPE, VISIBLE_MEETING } from "@/lib/scope";
+import { CLEARABLE_MEETING, IN_SCOPE, VISIBLE_MEETING } from "@/lib/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MeetingStatusBadge } from "@/components/status-badges";
 import { GenerateScheduleForm } from "@/components/meetings/generate-schedule-form";
+import { ClearScheduleButton } from "@/components/meetings/clear-schedule-button";
 import { formatDate } from "@/lib/utils";
 
 export default async function MeetingsListPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,7 @@ export default async function MeetingsListPage({ params }: { params: Promise<{ i
   });
   if (!assessment) notFound();
 
-  const [meetings, unscheduledCount] = await Promise.all([
+  const [meetings, unscheduledCount, clearableCount, lastMeeting] = await Promise.all([
     prisma.meeting.findMany({
       where: { assessmentId: id, ...VISIBLE_MEETING },
       orderBy: { sequenceNumber: "asc" },
@@ -30,7 +31,28 @@ export default async function MeetingsListPage({ params }: { params: Promise<{ i
       },
     }),
     prisma.controlAssessment.count({ where: { assessmentId: id, meetingId: null, ...IN_SCOPE } }),
+    prisma.meeting.count({ where: { assessmentId: id, ...CLEARABLE_MEETING } }),
+    prisma.meeting.findFirst({ where: { assessmentId: id }, orderBy: { scheduledAt: "desc" }, select: { scheduledAt: true } }),
   ]);
+
+  // New meetings default to starting after the last kept meeting, or today.
+  const defaultStart = lastMeeting ? new Date(lastMeeting.scheduledAt.getTime() + 14 * 24 * 60 * 60 * 1000) : new Date();
+  const defaultStartDate = defaultStart.toISOString().slice(0, 10);
+
+  const generateCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>{meetings.length === 0 ? "Generate a schedule" : "Schedule remaining controls"}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <GenerateScheduleForm
+          assessmentId={id}
+          unscheduledCount={unscheduledCount}
+          defaultStartDate={defaultStartDate}
+        />
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,6 +66,7 @@ export default async function MeetingsListPage({ params }: { params: Promise<{ i
         </div>
         {meetings.length > 0 && (
           <div className="flex gap-2">
+            {clearableCount > 0 && <ClearScheduleButton assessmentId={id} clearableCount={clearableCount} />}
             <Link
               href={`/assessments/${id}/meetings`}
               className="rounded-md border border-slate-900 bg-slate-900 px-3 py-1.5 text-sm font-medium text-white"
@@ -60,15 +83,10 @@ export default async function MeetingsListPage({ params }: { params: Promise<{ i
         )}
       </div>
 
+      {meetings.length > 0 && unscheduledCount > 0 && generateCard}
+
       {meetings.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Generate a schedule</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <GenerateScheduleForm assessmentId={id} unscheduledCount={unscheduledCount} />
-          </CardContent>
-        </Card>
+        generateCard
       ) : (
         <Card>
           <CardHeader>

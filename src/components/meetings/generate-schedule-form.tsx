@@ -11,9 +11,11 @@ import type { ActionResult } from "@/lib/actions/organizations";
 export function GenerateScheduleForm({
   assessmentId,
   unscheduledCount,
+  defaultStartDate,
 }: {
   assessmentId: string;
   unscheduledCount: number;
+  defaultStartDate: string;
 }) {
   const [state, formAction] = useActionState<ActionResult, FormData>(generateMeetingSchedule, {});
 
@@ -32,7 +34,7 @@ export function GenerateScheduleForm({
           <Label htmlFor="startDate">
             First meeting date<span className="text-red-500"> *</span>
           </Label>
-          <Input id="startDate" name="startDate" type="date" defaultValue="2026-09-29" required />
+          <Input id="startDate" name="startDate" type="date" defaultValue={defaultStartDate} required />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="startTime">
