@@ -7,6 +7,7 @@ import { RemediationStatusBadge, RemediationPriorityBadge } from "@/components/s
 import { ControlAssessmentStatusForm } from "@/components/control-assessments/status-form";
 import { EvidenceSection } from "@/components/control-assessments/evidence-section";
 import { RemediationForm } from "@/components/remediation/remediation-form";
+import { MarkDoneButton } from "@/components/remediation/mark-done-button";
 import { formatDate } from "@/lib/utils";
 
 export default async function ControlAssessmentDetailPage({
@@ -113,14 +114,17 @@ export default async function ControlAssessmentDetailPage({
                   className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 p-3 text-sm"
                 >
                   <div>
-                    <p className="font-medium text-slate-900">{item.title}</p>
+                    <Link href={`/remediation/${item.id}`} className="font-medium text-slate-900 hover:underline">
+                      {item.title}
+                    </Link>
                     <p className="text-xs text-slate-500">
                       Owner: {item.owner?.name ?? "Unassigned"} · Due {formatDate(item.dueDate)}
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <RemediationPriorityBadge priority={item.priority} />
                     <RemediationStatusBadge status={item.status} />
+                    <MarkDoneButton remediationId={item.id} status={item.status} />
                   </div>
                 </li>
               ))}

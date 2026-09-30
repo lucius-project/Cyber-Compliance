@@ -5,7 +5,13 @@ import { IN_SCOPE } from "@/lib/scope";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MeetingStatusBadge, ControlAssessmentStatusBadge } from "@/components/status-badges";
+import {
+  MeetingStatusBadge,
+  ControlAssessmentStatusBadge,
+  RemediationPriorityBadge,
+  RemediationStatusBadge,
+} from "@/components/status-badges";
+import { MarkDoneButton } from "@/components/remediation/mark-done-button";
 import { MeetingNotesForm } from "@/components/meetings/meeting-notes-form";
 import { actionItemsForControl, buildTodoEmail } from "@/lib/meeting-agenda";
 import { updateMeetingStatus } from "@/lib/actions/meetings";
@@ -72,7 +78,14 @@ export default async function MeetingDetailPage({
           _count: { select: { evidence: true } },
           remediationItems: {
             orderBy: { dueDate: "asc" },
-            select: { title: true, status: true, priority: true, dueDate: true, owner: { select: { name: true } } },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              priority: true,
+              dueDate: true,
+              owner: { select: { name: true } },
+            },
           },
         },
         orderBy: { control: { controlNumber: "asc" } },
@@ -204,6 +217,31 @@ export default async function MeetingDetailPage({
                   ))}
                 </ul>
               </div>
+              {ca.remediationItems.length > 0 && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Remediation</p>
+                  <ul className="mt-1.5 flex flex-col gap-2">
+                    {ca.remediationItems.map((item) => (
+                      <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <div>
+                          <Link href={`/remediation/${item.id}`} className="text-slate-900 hover:underline">
+                            {item.title}
+                          </Link>
+                          <span className="text-xs text-slate-500">
+                            {" "}
+                            · {item.owner?.name ?? "Unassigned"} · Due {formatDate(item.dueDate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <RemediationPriorityBadge priority={item.priority} />
+                          <RemediationStatusBadge status={item.status} />
+                          <MarkDoneButton remediationId={item.id} status={item.status} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </CardContent>

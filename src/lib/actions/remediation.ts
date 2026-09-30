@@ -46,7 +46,7 @@ export async function updateRemediationStatus(remediationId: string, status: str
   const before = await prisma.remediationItem.findUnique({ where: { id: remediationId } });
   if (!before) return;
 
-  const completedDate = status === "COMPLETED" ? new Date() : null;
+  const completedDate = status === "COMPLETED" ? (before.completedDate ?? new Date()) : null;
 
   const item = await prisma.remediationItem.update({
     where: { id: remediationId },
@@ -61,6 +61,63 @@ export async function updateRemediationStatus(remediationId: string, status: str
     newValue: { status: item.status },
   });
 
+  revalidateRemediation(item.organizationId, item.id);
+}
+
+/** Remediation items show on the list, the org page, and assessment control/meeting pages. */
+function revalidateRemediation(organizationId: string, remediationId?: string) {
   revalidatePath("/remediation");
-  revalidatePath(`/organizations/${item.organizationId}`);
+  if (remediationId) revalidatePath(`/remediation/${remediationId}`);
+  revalidatePath(`/organizations/${organizationId}`);
+  revalidatePath("/assessments", "layout");
+}
+
+export async function updateRemediationItem(
+  remediationId: string,
+  _prevState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const parsed = remediationSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const before = await prisma.remediationItem.findUnique({ where: { id: remediationId } });
+  if (!before) return { error: "Remediation item not found" };
+
+  const { title, description, ownerId, priority, status, dueDate, notes } = parsed.data;
+  const item = await prisma.remediationItem.update({
+    where: { id: remediationId },
+    data: {
+      title,
+      description: description ?? null,
+      ownerId: ownerId || null,
+      priority,
+      status,
+      dueDate: dueDate ?? null,
+      notes: notes ?? null,
+      // Keep the original completion date if it was already completed.
+      completedDate: status === "COMPLETED" ? (before.completedDate ?? new Date()) : null,
+    },
+  });
+
+  const pick = (r: typeof item) => ({
+    title: r.title,
+    ownerId: r.ownerId,
+    priority: r.priority,
+    status: r.status,
+    dueDate: r.dueDate,
+    description: r.description,
+    notes: r.notes,
+  });
+  await recordAuditLog({
+    entityType: "RemediationItem",
+    entityId: item.id,
+    action: "updated",
+    previousValue: JSON.parse(JSON.stringify(pick(before))),
+    newValue: JSON.parse(JSON.stringify(pick(item))),
+  });
+
+  revalidateRemediation(item.organizationId, item.id);
+  return { message: "Saved." };
 }

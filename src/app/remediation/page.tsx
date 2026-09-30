@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { RemediationPriorityBadge, RemediationStatusBadge } from "@/components/status-badges";
+import { MarkDoneButton } from "@/components/remediation/mark-done-button";
 import { formatDate, isOverdue, cn } from "@/lib/utils";
 import type { Prisma, RemediationPriority, RemediationStatus } from "@prisma/client";
 
@@ -76,6 +77,7 @@ export default async function RemediationPage({
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Due Date</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,7 +85,11 @@ export default async function RemediationPage({
                   const overdue = isOverdue(item.dueDate, item.status);
                   return (
                     <TableRow key={item.id} className={cn(overdue && "bg-red-50/60")}>
-                      <TableCell className="font-medium text-slate-900">{item.title}</TableCell>
+                      <TableCell>
+                        <Link href={`/remediation/${item.id}`} className="font-medium text-slate-900 hover:underline">
+                          {item.title}
+                        </Link>
+                      </TableCell>
                       <TableCell>
                         <Link href={`/organizations/${item.organization.id}`} className="text-slate-600 hover:underline">
                           {item.organization.name}
@@ -99,6 +105,9 @@ export default async function RemediationPage({
                       <TableCell className={cn("text-slate-600", overdue && "font-medium text-red-700")}>
                         {formatDate(item.dueDate)}
                         {overdue && " (overdue)"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <MarkDoneButton remediationId={item.id} status={item.status} />
                       </TableCell>
                     </TableRow>
                   );

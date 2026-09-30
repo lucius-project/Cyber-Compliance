@@ -220,7 +220,11 @@ export default async function OrganizationDetailPage({
                   <TableBody>
                     {organization.remediationItems.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium text-slate-900">{item.title}</TableCell>
+                        <TableCell>
+                          <Link href={`/remediation/${item.id}`} className="font-medium text-slate-900 hover:underline">
+                            {item.title}
+                          </Link>
+                        </TableCell>
                         <TableCell className="text-slate-600">{item.owner?.name ?? "Unassigned"}</TableCell>
                         <TableCell>
                           <RemediationPriorityBadge priority={item.priority} />
