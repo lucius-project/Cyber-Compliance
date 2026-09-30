@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MeetingStatusBadge, ControlAssessmentStatusBadge } from "@/components/status-badges";
 import { MeetingNotesForm } from "@/components/meetings/meeting-notes-form";
-import { actionItemsForControl } from "@/lib/meeting-agenda";
+import { actionItemsForControl, buildTodoEmail } from "@/lib/meeting-agenda";
 import { updateMeetingStatus } from "@/lib/actions/meetings";
 import { formatDate } from "@/lib/utils";
 
@@ -58,10 +58,23 @@ export default async function MeetingDetailPage({
   const meeting = await prisma.meeting.findUnique({
     where: { id: meetingId },
     include: {
-      assessment: { include: { organization: true } },
+      assessment: {
+        include: {
+          organization: { include: { people: { where: { active: true }, select: { email: true } } } },
+          assessor: { select: { email: true } },
+        },
+      },
       controlAssessments: {
         where: IN_SCOPE,
-        include: { control: { include: { frameworkMappings: { include: { frameworkRequirement: { include: { framework: true } } } } } } },
+        include: {
+          control: { include: { frameworkMappings: { include: { frameworkRequirement: { include: { framework: true } } } } } },
+          owner: { select: { name: true } },
+          _count: { select: { evidence: true } },
+          remediationItems: {
+            orderBy: { dueDate: "asc" },
+            select: { title: true, status: true, priority: true, dueDate: true, owner: { select: { name: true } } },
+          },
+        },
         orderBy: { control: { controlNumber: "asc" } },
       },
     },
@@ -76,6 +89,28 @@ export default async function MeetingDetailPage({
     scheduledAt: meeting.scheduledAt,
     controls: meeting.controlAssessments.map((ca) => ca.control),
   });
+  // To-do list goes to the assessor plus everyone in the client's People list.
+  const todoRecipients = Array.from(
+    new Set(
+      [meeting.assessment.assessor?.email, ...organization.people.map((p) => p.email)].filter(
+        (email): email is string => Boolean(email)
+      )
+    )
+  );
+  const todoEmail = buildTodoEmail({
+    orgName: organization.name,
+    sequenceNumber: meeting.sequenceNumber,
+    scheduledAt: meeting.scheduledAt,
+    meetingNotes: meeting.notes,
+    controls: meeting.controlAssessments.map((ca) => ({ ...ca, evidenceCount: ca._count.evidence })),
+  });
+  const todoMailtoHref =
+    todoRecipients.length > 0
+      ? `mailto:${todoRecipients.map(encodeURIComponent).join(",")}?subject=${encodeURIComponent(
+          todoEmail.subject
+        )}&body=${encodeURIComponent(todoEmail.body)}`
+      : null;
+
   const mailtoHref = organization.email
     ? `mailto:${encodeURIComponent(organization.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     : null;
@@ -96,6 +131,13 @@ export default async function MeetingDetailPage({
           <p className="mt-1 text-sm text-slate-500">{organization.name}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {todoMailtoHref && (
+            <Button asChild size="sm">
+              <a href={todoMailtoHref} title={`To: ${todoRecipients.join(", ")}`}>
+                Email to-do list
+              </a>
+            </Button>
+          )}
           {mailtoHref ? (
             <Button asChild variant="outline" size="sm">
               <a href={mailtoHref}>Email agenda to {organization.primaryContact ?? organization.name}</a>
