@@ -9,10 +9,13 @@ export default async function NewAssessmentPage({
 }) {
   const { organizationId } = await searchParams;
 
-  const [organizations, frameworks, users] = await Promise.all([
+  const [organizations, frameworks, users, applied] = await Promise.all([
     prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.framework.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    organizationId
+      ? prisma.organizationFramework.findMany({ where: { organizationId }, select: { frameworkId: true } })
+      : [],
   ]);
 
   return (
@@ -34,6 +37,7 @@ export default async function NewAssessmentPage({
             frameworks={frameworks}
             users={users}
             defaultOrganizationId={organizationId}
+            defaultFrameworkIds={applied.map((a) => a.frameworkId)}
           />
         </CardContent>
       </Card>

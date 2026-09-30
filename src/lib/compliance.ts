@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE } from "@/lib/scope";
 import type { ControlAssessmentStatus } from "@prisma/client";
 
 export type StatusCounts = Record<ControlAssessmentStatus, number>;
@@ -75,9 +76,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   ]);
 
   const controlAssessments = await prisma.controlAssessment.findMany({
-    where: { assessmentId: { in: latestAssessmentIds } },
+    where: { assessmentId: { in: latestAssessmentIds }, ...IN_SCOPE },
     select: {
       status: true,
+      assessment: { select: { frameworks: { select: { frameworkId: true } } } },
       control: {
         select: {
           category: true,
@@ -102,8 +104,13 @@ export async function getDashboardData(): Promise<DashboardData> {
     if (!byCategoryCounts.has(category)) byCategoryCounts.set(category, emptyStatusCounts());
     byCategoryCounts.get(category)![ca.status]++;
 
+    // Only credit frameworks this assessment actually covers - a control in
+    // scope via one framework may also map to others the client doesn't use.
+    const assessmentFrameworkIds = new Set(ca.assessment.frameworks.map((f) => f.frameworkId));
     const frameworkIdsForControl = new Set(
-      ca.control.frameworkMappings.map((m) => m.frameworkRequirement.frameworkId)
+      ca.control.frameworkMappings
+        .map((m) => m.frameworkRequirement.frameworkId)
+        .filter((frameworkId) => assessmentFrameworkIds.has(frameworkId))
     );
     for (const frameworkId of frameworkIdsForControl) {
       const bucket = byFrameworkCounts.get(frameworkId);
@@ -164,8 +171,10 @@ export async function getOrganizationReadinessByFramework(
         orderBy: [{ assessmentDate: "desc" }, { createdAt: "desc" }],
         take: 1,
         select: {
+          frameworks: { select: { frameworkId: true } },
           controlAssessments: {
             where: {
+              ...IN_SCOPE,
               control: {
                 frameworkMappings: { some: { frameworkRequirement: { frameworkId } } },
               },
@@ -179,7 +188,8 @@ export async function getOrganizationReadinessByFramework(
 
   return organizations.map((org) => {
     const latest = org.assessments[0];
-    if (!latest || latest.controlAssessments.length === 0) {
+    const coversFramework = latest?.frameworks.some((f) => f.frameworkId === frameworkId);
+    if (!latest || !coversFramework || latest.controlAssessments.length === 0) {
       return { organizationId: org.id, organizationName: org.name, readiness: null, counts: emptyStatusCounts() };
     }
     const counts = emptyStatusCounts();
@@ -225,7 +235,7 @@ export async function getOrganizationReadinessMap(): Promise<Map<string, Organiz
       assessments: {
         orderBy: [{ assessmentDate: "desc" }, { createdAt: "desc" }],
         take: 1,
-        select: { id: true, controlAssessments: { select: { status: true } } },
+        select: { id: true, controlAssessments: { where: IN_SCOPE, select: { status: true } } },
       },
     },
   });

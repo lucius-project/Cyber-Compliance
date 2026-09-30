@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE } from "@/lib/scope";
 import { recordAuditLog } from "@/lib/audit";
 import { meetingScheduleSchema, meetingNotesSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/organizations";
@@ -33,7 +34,7 @@ export async function generateMeetingSchedule(
   }
 
   const unscheduled = await prisma.controlAssessment.findMany({
-    where: { assessmentId, meetingId: null },
+    where: { assessmentId, meetingId: null, ...IN_SCOPE },
     select: { id: true },
     orderBy: { control: { controlNumber: "asc" } },
   });

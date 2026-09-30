@@ -82,6 +82,15 @@ preserved historically instead of overwritten.
 - `ControlAssessment` → `Evidence` (many) and → `RemediationItem` (many).
 - `AuditLog` is a generic entity/action/before/after trail, not tied to a
   specific table.
+- `OrganizationFramework` records which frameworks apply to a client.
+  Changing them re-scopes that client's open (DRAFT/IN_PROGRESS) assessments
+  via `src/lib/scope.ts`: rows are added for newly in-scope controls, and rows
+  for controls no longer mapped to an applied framework get
+  `ControlAssessment.inScope = false` - **never deleted**, so evidence,
+  remediation and meeting slots come back if the framework is re-applied.
+  Every list/count/readiness read of `ControlAssessment` must filter with
+  `IN_SCOPE` (and meeting lists with `VISIBLE_MEETING`), or hidden controls
+  will leak back into the UI and percentages.
 - People at a client are `User` rows with `organizationId` set (MSP staff
   have none), so they can own controls and remediation items.
 

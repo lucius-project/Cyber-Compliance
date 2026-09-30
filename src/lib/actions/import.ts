@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { OPEN_ASSESSMENT_STATUSES, syncAssessmentScope } from "@/lib/scope";
 import { recordAuditLog } from "@/lib/audit";
 import { csvToRecords } from "@/lib/csv";
 
@@ -167,6 +168,18 @@ export async function importControlsCsv(
     action: "csv_import",
     newValue: summary,
   });
+
+  // New mappings can bring more controls into scope for open assessments.
+  if (summary.mappingsCreated > 0) {
+    const openAssessments = await prisma.assessment.findMany({
+      where: { status: { in: OPEN_ASSESSMENT_STATUSES } },
+      select: { id: true },
+    });
+    for (const { id } of openAssessments) {
+      await prisma.$transaction((tx) => syncAssessmentScope(tx, id));
+    }
+    revalidatePath("/assessments", "layout");
+  }
 
   revalidatePath("/controls");
   revalidatePath("/frameworks");

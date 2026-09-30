@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE } from "@/lib/scope";
 import { calculateReadiness, emptyStatusCounts } from "@/lib/compliance";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ export default async function AssessmentsPage() {
     include: {
       organization: { select: { id: true, name: true } },
       frameworks: { include: { framework: true } },
-      controlAssessments: { select: { status: true } },
+      controlAssessments: { where: IN_SCOPE, select: { status: true } },
       assessor: { select: { name: true } },
     },
   });

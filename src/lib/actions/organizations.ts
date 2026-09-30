@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { recordAuditLog } from "@/lib/audit";
 import { organizationSchema, personSchema } from "@/lib/validation";
+import { OPEN_ASSESSMENT_STATUSES, setAssessmentFrameworks } from "@/lib/scope";
 
-export type ActionResult = { error: string } | { error?: undefined };
+export type ActionResult = { error: string; message?: undefined } | { error?: undefined; message?: string };
 
 export async function createOrganization(
   _prevState: ActionResult,
@@ -90,3 +91,60 @@ export async function addOrganizationPerson(
   return {};
 }
 
+/**
+ * Sets which frameworks apply to a client, then re-scopes every open
+ * assessment for that client to match. Completed/archived assessments keep
+ * the frameworks they were run against.
+ */
+export async function setOrganizationFrameworks(
+  organizationId: string,
+  _prevState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const frameworkIds = formData.getAll("frameworkIds").map(String).filter(Boolean);
+  if (frameworkIds.length === 0) return { error: "Select at least one framework" };
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    include: { frameworks: { select: { frameworkId: true } } },
+  });
+  if (!organization) return { error: "Organization not found" };
+
+  const openAssessments = await prisma.assessment.findMany({
+    where: { organizationId, status: { in: OPEN_ASSESSMENT_STATUSES } },
+    select: { id: true },
+  });
+
+  const results = await prisma.$transaction(async (tx) => {
+    await tx.organizationFramework.deleteMany({ where: { organizationId, frameworkId: { notIn: frameworkIds } } });
+    await tx.organizationFramework.createMany({
+      data: frameworkIds.map((frameworkId) => ({ organizationId, frameworkId })),
+      skipDuplicates: true,
+    });
+    const perAssessment = [];
+    for (const { id } of openAssessments) {
+      perAssessment.push({ assessmentId: id, ...(await setAssessmentFrameworks(tx, id, frameworkIds)) });
+    }
+    return perAssessment;
+  });
+
+  await recordAuditLog({
+    entityType: "Organization",
+    entityId: organizationId,
+    action: "frameworks_changed",
+    previousValue: { frameworkIds: organization.frameworks.map((f) => f.frameworkId) },
+    newValue: { frameworkIds, assessments: results },
+  });
+
+  revalidatePath(`/organizations/${organizationId}`);
+  revalidatePath("/assessments", "layout");
+  revalidatePath("/");
+
+  if (results.length === 0) return { message: "Frameworks saved." };
+  const shown = results.reduce((n, r) => n + r.inScope, 0);
+  return {
+    message: `Frameworks saved. ${results.length} open assessment${results.length === 1 ? "" : "s"} now show${
+      results.length === 1 ? "s" : ""
+    } ${shown} applicable control${shown === 1 ? "" : "s"}.`,
+  };
+}

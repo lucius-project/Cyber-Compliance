@@ -76,9 +76,26 @@ model Organization {
   assessments      Assessment[]
   remediationItems RemediationItem[]
   people           User[]
+  frameworks       OrganizationFramework[]
 
   @@index([name])
   @@map("organizations")
+}
+
+// Which frameworks apply to a client. Changing these re-scopes the client's
+// open (DRAFT / IN_PROGRESS) assessments - see src/lib/scope.ts.
+model OrganizationFramework {
+  id             String   @id @default(cuid())
+  organizationId String
+  frameworkId    String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  framework    Framework    @relation(fields: [frameworkId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, frameworkId])
+  @@index([frameworkId])
+  @@map("organization_frameworks")
 }
 
 // ---------------------------------------------------------------------------
@@ -95,8 +112,9 @@ model Framework {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  requirements         FrameworkRequirement[]
-  assessmentFrameworks AssessmentFramework[]
+  requirements           FrameworkRequirement[]
+  assessmentFrameworks   AssessmentFramework[]
+  organizationFrameworks OrganizationFramework[]
 
   @@map("frameworks")
 }
@@ -258,6 +276,11 @@ model ControlAssessment {
   ownerId        String?
   assessorId     String?
   meetingId      String?
+  // False when the control no longer maps to any of the assessment's
+  // frameworks. The row (and its evidence/remediation/meeting) is kept so
+  // re-applying the framework restores it, but it is hidden from lists and
+  // excluded from readiness. Maintained only by src/lib/scope.ts.
+  inScope        Boolean                  @default(true)
   notes          String?
   lastReviewedAt DateTime?
   nextReviewAt   DateTime?
@@ -274,6 +297,7 @@ model ControlAssessment {
   remediationItems  RemediationItem[]
 
   @@unique([assessmentId, controlId])
+  @@index([assessmentId, inScope])
   @@index([controlId])
   @@index([status])
   @@index([meetingId])

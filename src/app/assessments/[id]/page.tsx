@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE } from "@/lib/scope";
 import { calculateReadiness, emptyStatusCounts } from "@/lib/compliance";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,9 @@ export default async function AssessmentDetailPage({
       organization: true,
       assessor: { select: { name: true } },
       frameworks: { include: { framework: true } },
+      _count: { select: { controlAssessments: { where: { inScope: false } } } },
       controlAssessments: {
+        where: IN_SCOPE,
         include: {
           control: true,
           owner: { select: { name: true } },
@@ -105,6 +108,15 @@ export default async function AssessmentDetailPage({
       <Card>
         <CardHeader>
           <CardTitle>Controls ({assessment.controlAssessments.length})</CardTitle>
+          {assessment._count.controlAssessments > 0 && (
+            <p className="text-sm text-slate-500">
+              {assessment._count.controlAssessments} controls outside this client&apos;s{" "}
+              <Link href={`/organizations/${assessment.organization.id}`} className="underline">
+                applicable frameworks
+              </Link>{" "}
+              are hidden. Their data is kept.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {assessment.controlAssessments.length === 0 ? (

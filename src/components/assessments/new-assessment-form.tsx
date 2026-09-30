@@ -15,11 +15,14 @@ export function NewAssessmentForm({
   frameworks,
   users,
   defaultOrganizationId,
+  defaultFrameworkIds,
 }: {
   organizations: { id: string; name: string }[];
   frameworks: { id: string; name: string }[];
   users: { id: string; name: string }[];
   defaultOrganizationId?: string;
+  /** The chosen organization's applied frameworks, pre-checked. */
+  defaultFrameworkIds?: string[];
 }) {
   const [state, formAction] = useActionState<ActionResult, FormData>(createAssessment, {});
 
@@ -60,7 +63,12 @@ export function NewAssessmentForm({
           ) : (
             frameworks.map((fw) => (
               <label key={fw.id} className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" name="frameworkIds" value={fw.id} />
+                <input
+                  type="checkbox"
+                  name="frameworkIds"
+                  value={fw.id}
+                  defaultChecked={defaultFrameworkIds?.includes(fw.id)}
+                />
                 {fw.name}
               </label>
             ))

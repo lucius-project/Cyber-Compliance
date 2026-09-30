@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE, VISIBLE_MEETING } from "@/lib/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MeetingStatusBadge } from "@/components/status-badges";
 import { parseMonthParam, monthParam, addMonths, buildMonthGrid, toDateKey } from "@/lib/calendar";
@@ -32,10 +33,11 @@ export default async function MeetingsCalendarPage({
   gridEndExclusive.setUTCDate(gridEndExclusive.getUTCDate() + 1);
 
   const meetings = await prisma.meeting.findMany({
-    where: { assessmentId: id, scheduledAt: { gte: gridStart, lt: gridEndExclusive } },
+    where: { assessmentId: id, scheduledAt: { gte: gridStart, lt: gridEndExclusive }, ...VISIBLE_MEETING },
     orderBy: { scheduledAt: "asc" },
     include: {
       controlAssessments: {
+        where: IN_SCOPE,
         select: { control: { select: { controlNumber: true } } },
         orderBy: { control: { controlNumber: "asc" } },
       },

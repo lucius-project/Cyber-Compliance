@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE, VISIBLE_MEETING } from "@/lib/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MeetingStatusBadge } from "@/components/status-badges";
@@ -18,16 +19,17 @@ export default async function MeetingsListPage({ params }: { params: Promise<{ i
 
   const [meetings, unscheduledCount] = await Promise.all([
     prisma.meeting.findMany({
-      where: { assessmentId: id },
+      where: { assessmentId: id, ...VISIBLE_MEETING },
       orderBy: { sequenceNumber: "asc" },
       include: {
         controlAssessments: {
+          where: IN_SCOPE,
           select: { control: { select: { controlNumber: true } } },
           orderBy: { control: { controlNumber: "asc" } },
         },
       },
     }),
-    prisma.controlAssessment.count({ where: { assessmentId: id, meetingId: null } }),
+    prisma.controlAssessment.count({ where: { assessmentId: id, meetingId: null, ...IN_SCOPE } }),
   ]);
 
   return (

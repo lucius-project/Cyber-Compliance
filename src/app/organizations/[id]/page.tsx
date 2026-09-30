@@ -10,6 +10,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AssessmentStatusBadge, RemediationPriorityBadge, RemediationStatusBadge } from "@/components/status-badges";
 import { AddPersonForm } from "@/components/organizations/add-person-form";
+import { OrganizationFrameworksForm } from "@/components/organizations/frameworks-form";
+import { IN_SCOPE } from "@/lib/scope";
 import { formatDate, formatPercent } from "@/lib/utils";
 
 export default async function OrganizationDetailPage({
@@ -26,7 +28,7 @@ export default async function OrganizationDetailPage({
         orderBy: [{ assessmentDate: "desc" }, { createdAt: "desc" }],
         include: {
           frameworks: { include: { framework: true } },
-          controlAssessments: { select: { status: true } },
+          controlAssessments: { where: IN_SCOPE, select: { status: true } },
         },
       },
       remediationItems: {
@@ -36,6 +38,19 @@ export default async function OrganizationDetailPage({
       people: {
         orderBy: { name: "asc" },
         include: { _count: { select: { remediationItemsOwned: true, controlAssessmentsOwned: true } } },
+      },
+      frameworks: { select: { frameworkId: true } },
+    },
+  });
+
+  const frameworks = await prisma.framework.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      requirements: {
+        select: { mappings: { where: { control: { isDeprecated: false } }, select: { controlId: true } } },
       },
     },
   });
@@ -96,6 +111,22 @@ export default async function OrganizationDetailPage({
                 <p className="whitespace-pre-wrap text-sm text-slate-700">
                   {organization.notes || "No notes yet."}
                 </p>
+              </CardContent>
+            </Card>
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Applicable Frameworks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OrganizationFrameworksForm
+                  organizationId={organization.id}
+                  frameworks={frameworks.map((fw) => ({
+                    id: fw.id,
+                    name: fw.name,
+                    controlCount: new Set(fw.requirements.flatMap((r) => r.mappings.map((m) => m.controlId))).size,
+                  }))}
+                  appliedFrameworkIds={organization.frameworks.map((f) => f.frameworkId)}
+                />
               </CardContent>
             </Card>
           </div>

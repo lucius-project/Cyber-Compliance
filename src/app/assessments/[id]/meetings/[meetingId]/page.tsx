@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { IN_SCOPE } from "@/lib/scope";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +60,7 @@ export default async function MeetingDetailPage({
     include: {
       assessment: { include: { organization: true } },
       controlAssessments: {
+        where: IN_SCOPE,
         include: { control: { include: { frameworkMappings: { include: { frameworkRequirement: { include: { framework: true } } } } } } },
         orderBy: { control: { controlNumber: "asc" } },
       },
