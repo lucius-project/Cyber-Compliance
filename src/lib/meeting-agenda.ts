@@ -13,14 +13,14 @@ export function actionItemsForControl(control: { controlNumber: string; name: st
   ];
 }
 
-const OPEN_REMEDIATION_STATUSES = ["OPEN", "IN_PROGRESS", "BLOCKED"] as const;
+export const OPEN_REMEDIATION_STATUSES = ["OPEN", "IN_PROGRESS", "BLOCKED"] as const;
 
-function humanize(value: string): string {
+export function humanize(value: string): string {
   const s = value.replace(/_/g, " ").toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function shortDate(date: Date): string {
+export function shortDate(date: Date): string {
   return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
