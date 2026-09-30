@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ASSIGNABLE_USER } from "@/lib/system-user";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RemediationForm } from "@/components/remediation/remediation-form";
 
@@ -6,7 +7,7 @@ export default async function NewRemediationPage() {
   const [organizations, people] = await Promise.all([
     prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.user.findMany({
-      where: { active: true },
+      where: ASSIGNABLE_USER,
       orderBy: { name: "asc" },
       select: { id: true, name: true, organization: { select: { name: true } } },
     }),

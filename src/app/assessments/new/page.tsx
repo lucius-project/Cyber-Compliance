@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ASSIGNABLE_USER } from "@/lib/system-user";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NewAssessmentForm } from "@/components/assessments/new-assessment-form";
 
@@ -12,7 +13,7 @@ export default async function NewAssessmentPage({
   const [organizations, frameworks, users, applied] = await Promise.all([
     prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.framework.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.user.findMany({ where: ASSIGNABLE_USER, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     organizationId
       ? prisma.organizationFramework.findMany({ where: { organizationId }, select: { frameworkId: true } })
       : [],

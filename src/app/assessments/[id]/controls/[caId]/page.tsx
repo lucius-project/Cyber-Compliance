@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { ASSIGNABLE_USER } from "@/lib/system-user";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RemediationStatusBadge, RemediationPriorityBadge } from "@/components/status-badges";
@@ -34,7 +35,7 @@ export default async function ControlAssessmentDetailPage({
   // Assignable people: MSP staff (no organization) plus this client's own people.
   const users = await prisma.user.findMany({
     where: {
-      active: true,
+      ...ASSIGNABLE_USER,
       OR: [{ organizationId: null }, { organizationId: controlAssessment.assessment.organizationId }],
     },
     orderBy: { name: "asc" },

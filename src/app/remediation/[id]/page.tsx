@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { ASSIGNABLE_USER } from "@/lib/system-user";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RemediationStatusBadge } from "@/components/status-badges";
 import { RemediationForm } from "@/components/remediation/remediation-form";
@@ -23,7 +24,7 @@ export default async function RemediationDetailPage({ params }: { params: Promis
 
   // Assignable people: MSP staff (no organization) plus this client's own people.
   const users = await prisma.user.findMany({
-    where: { active: true, OR: [{ organizationId: null }, { organizationId: item.organizationId }] },
+    where: { ...ASSIGNABLE_USER, OR: [{ organizationId: null }, { organizationId: item.organizationId }] },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

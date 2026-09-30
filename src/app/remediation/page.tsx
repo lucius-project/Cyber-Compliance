@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { SYSTEM_USER_EMAIL } from "@/lib/system-user";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -52,14 +53,13 @@ export default async function RemediationPage({
         select: { assessor: { select: { email: true } } },
       }),
     ]);
-    const systemEmail = process.env.SEED_SYSTEM_USER_EMAIL ?? "system@cyber-compliance.local";
     taskRecipients = Array.from(
       new Set(
         [
           ...assessments.map((a) => a.assessor?.email),
           ...people.map((p) => p.email),
           ...openItems.map((i) => i.owner?.email),
-        ].filter((email): email is string => Boolean(email) && email !== systemEmail)
+        ].filter((email): email is string => Boolean(email) && email !== SYSTEM_USER_EMAIL)
       )
     );
     const { subject, body } = buildTasksEmail({ orgName: selectedOrg.name, tasks: openItems });
