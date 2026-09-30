@@ -40,6 +40,14 @@ export const organizationSchema = z.object({
   notes: optionalTrimmed,
 });
 
+/** A person at a client organization, stored as a `User` so they can own tasks. */
+export const personSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  email: z.string().trim().toLowerCase().email("A valid email is required"),
+  title: optionalTrimmed,
+  role: z.enum(["ADMIN", "ASSESSOR", "TECHNICIAN", "CLIENT"]).default("CLIENT"),
+});
+
 // Controls ------------------------------------------------------------------
 
 export const controlSchema = z.object({

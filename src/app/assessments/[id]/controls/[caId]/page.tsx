@@ -16,22 +16,29 @@ export default async function ControlAssessmentDetailPage({
 }) {
   const { id, caId } = await params;
 
-  const [controlAssessment, users] = await Promise.all([
-    prisma.controlAssessment.findUnique({
-      where: { id: caId },
-      include: {
-        control: {
-          include: { frameworkMappings: { include: { frameworkRequirement: { include: { framework: true } } } } },
-        },
-        assessment: { include: { organization: true } },
-        evidence: { orderBy: { createdAt: "desc" }, include: { collectedBy: { select: { name: true } } } },
-        remediationItems: { orderBy: { createdAt: "desc" }, include: { owner: { select: { name: true } } } },
+  const controlAssessment = await prisma.controlAssessment.findUnique({
+    where: { id: caId },
+    include: {
+      control: {
+        include: { frameworkMappings: { include: { frameworkRequirement: { include: { framework: true } } } } },
       },
-    }),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-  ]);
+      assessment: { include: { organization: true } },
+      evidence: { orderBy: { createdAt: "desc" }, include: { collectedBy: { select: { name: true } } } },
+      remediationItems: { orderBy: { createdAt: "desc" }, include: { owner: { select: { name: true } } } },
+    },
+  });
 
   if (!controlAssessment || controlAssessment.assessmentId !== id) notFound();
+
+  // Assignable people: MSP staff (no organization) plus this client's own people.
+  const users = await prisma.user.findMany({
+    where: {
+      active: true,
+      OR: [{ organizationId: null }, { organizationId: controlAssessment.assessment.organizationId }],
+    },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <div className="flex flex-col gap-6">

@@ -5,7 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 
 export default async function SettingsPage() {
   const [users, auditLogCount] = await Promise.all([
-    prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.user.findMany({ orderBy: { name: "asc" }, include: { organization: { select: { name: true } } } }),
     prisma.auditLog.count(),
   ]);
 
@@ -29,6 +29,7 @@ export default async function SettingsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium text-slate-900">{user.name}</TableCell>
                   <TableCell className="text-slate-600">{user.email}</TableCell>
+                  <TableCell className="text-slate-600">{user.organization?.name ?? "MSP staff"}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{user.role}</Badge>
                   </TableCell>

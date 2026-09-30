@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AssessmentStatusBadge, RemediationPriorityBadge, RemediationStatusBadge } from "@/components/status-badges";
+import { AddPersonForm } from "@/components/organizations/add-person-form";
 import { formatDate, formatPercent } from "@/lib/utils";
 
 export default async function OrganizationDetailPage({
@@ -31,6 +32,10 @@ export default async function OrganizationDetailPage({
       remediationItems: {
         orderBy: { createdAt: "desc" },
         include: { owner: { select: { name: true } } },
+      },
+      people: {
+        orderBy: { name: "asc" },
+        include: { _count: { select: { remediationItemsOwned: true, controlAssessmentsOwned: true } } },
       },
     },
   });
@@ -63,6 +68,7 @@ export default async function OrganizationDetailPage({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="remediation">Remediation</TabsTrigger>
+          <TabsTrigger value="people">People</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -199,6 +205,56 @@ export default async function OrganizationDetailPage({
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="people">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardContent className="p-0">
+                {organization.people.length === 0 ? (
+                  <p className="px-6 py-10 text-center text-sm text-slate-500">
+                    No people added for this organization yet.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Assigned</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {organization.people.map((person) => (
+                        <TableRow key={person.id}>
+                          <TableCell className="font-medium text-slate-900">{person.name}</TableCell>
+                          <TableCell className="text-slate-600">{person.title ?? "—"}</TableCell>
+                          <TableCell className="text-slate-600">{person.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{person.role}</Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            {person._count.controlAssessmentsOwned} controls · {person._count.remediationItemsOwned}{" "}
+                            remediation
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Person</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AddPersonForm organizationId={organization.id} />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -82,6 +82,8 @@ preserved historically instead of overwritten.
 - `ControlAssessment` → `Evidence` (many) and → `RemediationItem` (many).
 - `AuditLog` is a generic entity/action/before/after trail, not tied to a
   specific table.
+- People at a client are `User` rows with `organizationId` set (MSP staff
+  have none), so they can own controls and remediation items.
 
 ## Coding conventions
 

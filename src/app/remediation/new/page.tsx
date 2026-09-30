@@ -3,10 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RemediationForm } from "@/components/remediation/remediation-form";
 
 export default async function NewRemediationPage() {
-  const [organizations, users] = await Promise.all([
+  const [organizations, people] = await Promise.all([
     prisma.organization.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.user.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, organization: { select: { name: true } } },
+    }),
   ]);
+  const users = people.map((p) => ({
+    id: p.id,
+    name: p.organization ? `${p.name} (${p.organization.name})` : p.name,
+  }));
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
